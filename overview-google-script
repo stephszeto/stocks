@@ -1,0 +1,100 @@
+function onSelectionChange(e) { 
+  const cell = e.range;
+  const row = e.range.getRow();
+  const col = e.range.getColumn();
+  const as = e.source.getActiveSheet(); 
+  if(as.getName() == "INDUSTRIES" && row > 1 && col == 3 || col == 7 || col == 11) {  
+    as.getRange('N1').setValue(cell.getValue());  
+  }
+  if(as.getName() == "industries-cap" && row > 2 && col == 1) {  
+    as.getRange('A2').setValue(cell.getValue());  
+  }
+}
+
+function fillValues() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var industries = ss.getSheetByName("INDUSTRIES");
+  var to_pull = ss.getSheetByName("to pull");
+  var ranges = industries.getRangeList(['B2:C58', 'F2:G74', 'J2:K72']).getRanges();
+  var values = ranges[0].getValues();
+  values = values.concat(ranges[1].getValues());
+  values = values.concat(ranges[2].getValues());
+  console.log(values);
+  var fields = [];
+
+  for ( i = 0; i < values.length; i++ ) {
+    if (values[i][0]) {
+      fields.push(values[i][1]);
+    }
+  }
+
+  to_pull.getRange('B2:B56').clearContent();
+  for (i = 2; i < fields.length + 2; i++ ) {
+    to_pull.getRange(i, 2).setValue(fields[i - 2]);
+  }
+}
+
+function convertFloats() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheets = ["sector-perf", "quotes", "tickers", "income", "cf", "raw-insider"];
+  // var sheets = ["raw-insider"];
+  var to_pull = ss.getSheetByName("to pull");
+  to_pull.getRange('F1').setValue("Converting floats ...");
+  
+  for (var worksheet of sheets) {
+    var sheet = ss.getSheetByName(worksheet);
+    var rangeData = sheet.getDataRange();
+    var lastColumn = rangeData.getLastColumn();
+    var lastRow = rangeData.getLastRow();
+    var searchRange = sheet.getRange(1,1, lastRow, lastColumn);
+
+    var values = searchRange.getValues();
+    var startCol = 0;
+    var endCol = lastColumn;
+
+    // set params per sheet
+    if (worksheet == "tickers") {
+      startCol = 3;
+      endCol = 4;
+    } else if (worksheet == "quotes") {
+      startCol = 3;
+      endCol = 5;
+    } else if (worksheet == "sector-perf") {
+      startCol = 2;
+      endCol = 3;
+    } else if (worksheet == "income") {
+      startCol = 5;
+    } else if (worksheet == "cf") {
+      startCol = 6;
+    } else if (worksheet == "raw-insider") {
+      startCol = 7;
+      endCol = 8;
+    }
+
+    // Loop through array and convert to float
+    for ( i = startCol; i < endCol; i++ ){
+      for ( j = 0 ; j < lastRow; j++ ){
+        var val = values[j][i];
+        console.log(String(j) + ", " + String(i));
+        console.log(val);
+        
+        float_val = +val;
+        if (isNaN(float_val)) {
+          console.log(float_val)
+        } else {
+          sheet.getRange(j+1,i+1).setValue(float_val);
+          console.log('updating to ' + typeof float_val);
+        }
+      };
+    };
+  };
+
+  var now = new Date();
+  var day = now.getDate();
+  var month = now.getMonth() + 1;
+  var time = now.toLocaleTimeString('en-US', { hour12: false,
+                                          timeZone: "America/Los_Angeles", 
+                                          hour: "numeric", 
+                                          minute: "numeric"});
+  to_pull.getRange('F1').setValue("Last converted: " + month + "/" + day + " " + time);
+}
