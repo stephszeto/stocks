@@ -5,19 +5,20 @@ import requests
 import pandas as pd
 import datetime
 import time
+import configs
 
 print('Warming up ...')
 
 # here you have to enter your actual API key 
-api_key = "PASTE YOUR API KEY HERE"
+api_key = configs.api_key
 
 # access google sheet
 scope = ['https://spreadsheets.google.com/feeds']
-creds = ServiceAccountCredentials.from_json_keyfile_name('ADD THE FILE THAT HAS YOUR JSON SECRETS HERE', scope)
+creds = ServiceAccountCredentials.from_json_keyfile_name('google-sheets-secret.json', scope)
 client = gspread.authorize(creds)
 
 # open spreadsheet
-spreadsheet_key = 'YOUR SPREADSHEET KEY GOES HERE'
+spreadsheet_key = configs.company_key
 sheet = client.open_by_key(spreadsheet_key)
 to_pull = sheet.worksheet("to pull")
 company_sheet = sheet.worksheet("ANNUAL")
@@ -49,20 +50,20 @@ km_ttm_cols, km_ttm_output = [], []
 # declare what data to pull
 # single sources are for sources that can only take one ticker at a time
 single_sources = [
-            ['income-statement/', 'with-limit', income_cols, income_output, 'income'],
-            ['balance-sheet-statement/', 'with-limit', bs_cols, bs_output, 'bs'],
-            ['cash-flow-statement/','with-limit', cf_cols, cf_output, 'cf'],
-            ['ratios/','with-limit', ratio_cols, ratio_output, 'ratio'],
-            ['key-metrics/','with-limit', km_cols, km_output, 'km'],
-            ['ratios-ttm/','ticker-only', ratio_ttm_cols, ratio_ttm_output, 'ratio-ttm'],
-            ['key-metrics-ttm/','ticker-only', km_ttm_cols, km_ttm_output, 'km-ttm'],
-            ['financial-statement-full-as-reported/','ticker-only', share_cols, share_output, 'shares']
+            # ['income-statement/', 'with-limit', income_cols, income_output, 'income'],
+            # ['balance-sheet-statement/', 'with-limit', bs_cols, bs_output, 'bs'],
+            # ['cash-flow-statement/','with-limit', cf_cols, cf_output, 'cf'],
+            # ['ratios/','with-limit', ratio_cols, ratio_output, 'ratio'],
+            ['key-metrics/','with-limit', km_cols, km_output, 'km']
+            # ['ratios-ttm/','ticker-only', ratio_ttm_cols, ratio_ttm_output, 'ratio-ttm'],
+            # ['key-metrics-ttm/','ticker-only', km_ttm_cols, km_ttm_output, 'km-ttm'],
+            # ['financial-statement-full-as-reported/','ticker-only', share_cols, share_output, 'shares']
         ]
 
 # bulk sources are sources that can take multiple tickers or only need to be called once
 bulk_sources = [
-            ['quote/','multiple-tickers', quote_cols, quote_output, 'quotes'],
-            ['profile/','multiple-tickers', prof_cols, prof_output, 'profiles']
+            # ['quote/','multiple-tickers', quote_cols, quote_output, 'quotes'],
+            # ['profile/','multiple-tickers', prof_cols, prof_output, 'profiles']
         ]
 
 period_sources = ['income', 'bs', 'cf', 'ratio', 'km']

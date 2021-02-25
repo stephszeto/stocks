@@ -53,11 +53,11 @@ table = table.drop(table.columns[[0, 1, 8, 9, 10, 11, 13, 14, 15, 16]], axis=1)
 print('Table: ' + str(table))
 
 scope = ['https://spreadsheets.google.com/feeds']
-creds = ServiceAccountCredentials.from_json_keyfile_name('ADD THE FILE THAT HAS YOUR JSON SECRETS HERE', scope)
+creds = ServiceAccountCredentials.from_json_keyfile_name('google-sheets-secret.json', scope)
 client = gspread.authorize(creds)
 
 # upload to overview table
-overview_key = 'YOUR SPREADSHEET KEY GOES HERE'
+overview_key = '1tSXlKAzvQmISZKmJ0jHZFKm-nuK5pJUmoI1rpAoVGus'
 sheet = client.open_by_key(overview_key)
 d2g.upload(table, overview_key, 'raw-insider', credentials=creds, row_names=True)
 
@@ -66,7 +66,7 @@ to_pull.update_cell(1, 6, "Need to be converted")
 print("Uploaded to Overview sheet")
 
 # upload to company table
-company_key = 'YOUR SPREADSHEET KEY GOES HERE'
+company_key = '1M4iu3A_DzOfJZgsoFEQ-1KlvCApajLYx6LT0gdP7tC8'
 sheet = client.open_by_key(company_key)
 d2g.upload(table, company_key, 'raw-insider', credentials=creds, row_names=True)
 

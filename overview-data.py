@@ -4,24 +4,26 @@ import gspread
 import requests
 import pandas as pd
 import datetime
+import configs
 
 print('Warming up ...')
 
 # here you have to enter your actual API key 
-api_key = "PASTE YOUR API KEY HERE"
+api_key = configs.api_key
 
 # access google sheet
 scope = ['https://spreadsheets.google.com/feeds']
-creds = ServiceAccountCredentials.from_json_keyfile_name('ADD THE FILE THAT HAS YOUR JSON SECRETS HERE', scope)
+creds = ServiceAccountCredentials.from_json_keyfile_name('google-sheets-secret.json', scope)
 client = gspread.authorize(creds)
 
 # open spreadsheet
-spreadsheet_key = 'YOUR SPREADSHEET KEY GOES HERE'
+spreadsheet_key = configs.overview_key
 sheet = client.open_by_key(spreadsheet_key)
 
 # pull values from sheets
 to_pull = sheet.worksheet("to pull")
 stocks = to_pull.col_values(1)[1:]
+stocks = list(set(stocks))
 industries = to_pull.col_values(2)[1:]
 etf_tickers = to_pull.col_values(3)[1:]
 
@@ -69,7 +71,7 @@ bulk_sources = [
             ['stock-list','',list_cols, list_output, 'tickers'],
             ['quotes/commodity','no-input', comm_cols, comm_output, 'commodities'],
             ['sectors-performance','no-input', sector_cols, sector_output, 'sector-perf']
-            # ['quotes/index', 'no-input', index_cols, index_output, 'indices']
+            # ['quotes/index', 'no-input', index_cols, index_output, 'indices'],
         ]
 
 sources = bulk_sources + single_sources
@@ -118,6 +120,7 @@ for source in single_sources:
             source[3] += [list(item.values())]
 
 print(tickers)
+
 # fetch data from API
 for source in bulk_sources:
     type, param_type = source[4], source[1]    
@@ -235,6 +238,7 @@ for source in sources:
     d2g.upload(table, spreadsheet_key, type, credentials=creds, row_names=True)    
 
 now = datetime.datetime.now()
-to_pull.update('E1', "Last updated: " + '{d.month}/{d.day} {d.hour}:{d.minute:02}'.format(d=now))
-to_pull.update('F1', "Need to be converted")
+to_pull.update('D1', "Last updated: " + '{d.month}/{d.day} {d.hour}:{d.minute:02}'.format(d=now))
+to_pull.update('E1', "Need to be converted")
+
 print('Finito!')

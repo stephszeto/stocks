@@ -7,16 +7,15 @@ import pandas as pd
 print('Warming up ...' + '\n')
 
 # here you have to enter your actual API key from SimFin
-# here you have to enter your actual API key 
-api_key = "PASTE YOUR API KEY HERE"
+first_api_key = "ZJIWhTAcwyuTq2r0RZ8zNcrJCNdlXyiY"
+api_key = "onGDfQnuTmzJ5YINzQvPMvHF944g2aiU"
 
 # access google sheet
 scope = ['https://spreadsheets.google.com/feeds']
-creds = ServiceAccountCredentials.from_json_keyfile_name('ADD THE FILE THAT HAS YOUR JSON SECRETS HERE', scope)
+creds = ServiceAccountCredentials.from_json_keyfile_name('google-sheets-secret.json', scope)
 client = gspread.authorize(creds)
 
-# open spreadsheet
-spreadsheet_key = 'YOUR SPREADSHEET KEY GOES HERE'
+spreadsheet_key = '1tSXlKAzvQmISZKmJ0jHZFKm-nuK5pJUmoI1rpAoVGus'
 sheet = client.open_by_key(spreadsheet_key)
 
 universe_sheet = sheet.worksheet("S&P500")
