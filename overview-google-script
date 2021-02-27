@@ -3,10 +3,13 @@ function onSelectionChange(e) {
   const row = e.range.getRow();
   const col = e.range.getColumn();
   const as = e.source.getActiveSheet(); 
-  if(as.getName() == "INDUSTRIES" && row > 1 && col == 3 || col == 7 || col == 11) {  
-    as.getRange('N1').setValue(cell.getValue());  
+  const sheet = as.getName();
+  if(sheet == "INDUSTRIES" && row > 1 && col == 3 || col == 7 || col == 11) {  
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var industries = ss.getSheetByName("INDUSTRIES");
+    industries.getRange('N1').setValue(cell.getValue());  
   }
-  if(as.getName() == "industries-cap" && row > 2 && col == 1) {  
+  if(sheet == "industries-cap" && row > 2 && col == 1) {  
     as.getRange('A2').setValue(cell.getValue());  
   }
 }
@@ -36,10 +39,10 @@ function fillValues() {
 
 function convertFloats() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheets = ["sector-perf", "quotes", "tickers", "income", "cf", "raw-insider"];
-  // var sheets = ["raw-insider"];
+  // var sheets = ["sector-perf", "quotes", "tickers", "income", "cf", "raw-insider"];
+  var sheets = ["raw-insider"];
   var to_pull = ss.getSheetByName("to pull");
-  to_pull.getRange('F1').setValue("Converting floats ...");
+  to_pull.getRange('I1').setValue("Converting floats ...");
   
   for (var worksheet of sheets) {
     var sheet = ss.getSheetByName(worksheet);
@@ -51,30 +54,35 @@ function convertFloats() {
     var values = searchRange.getValues();
     var startCol = 0;
     var endCol = lastColumn;
+    var cols_used = [];
 
     // set params per sheet
     if (worksheet == "tickers") {
-      startCol = 3;
-      endCol = 4;
+      cols_used = ["marketCap"];
     } else if (worksheet == "quotes") {
-      startCol = 3;
-      endCol = 5;
+      cols_used = ["price", "changesPercentage"];
     } else if (worksheet == "sector-perf") {
-      startCol = 2;
-      endCol = 3;
+      cols_used = ["changesPercentage"];
     } else if (worksheet == "income") {
-      startCol = 5;
+      cols_used = ["revenue", "netIncome"]
     } else if (worksheet == "cf") {
-      startCol = 6;
+      cols_used = ["netCashProvidedByOperatingActivities", "freeCashFlow"];
     } else if (worksheet == "raw-insider") {
-      startCol = 7;
-      endCol = 8;
+      cols_used = ["Value"];
     }
 
     // Loop through array and convert to float
     for ( i = startCol; i < endCol; i++ ){
       for ( j = 0 ; j < lastRow; j++ ){
         var val = values[j][i];
+        if (j == 0 && cols_used.length > 0) {
+          if (!cols_used.includes(val)) {
+            console.log("Skipping " + val);
+            break;
+            
+          }
+        }
+
         console.log(String(j) + ", " + String(i));
         console.log(val);
         
@@ -96,5 +104,5 @@ function convertFloats() {
                                           timeZone: "America/Los_Angeles", 
                                           hour: "numeric", 
                                           minute: "numeric"});
-  to_pull.getRange('F1').setValue("Last converted: " + month + "/" + day + " " + time);
+  to_pull.getRange('I1').setValue("Last converted: " + month + "/" + day + " " + time);
 }

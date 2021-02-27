@@ -32,12 +32,12 @@ function onEdit(e) {
 
 function convertFloats() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  // var sheets = ["quotes","km-ttm", "ratio-ttm", "km", "ratio", "cf", "bs", "income", "shares", "raw-insider"];
+  var sheets = ["quotes","km-ttm", "ratio-ttm", "km", "ratio", "cf", "bs", "income", "shares", "raw-insider"];
   // var sheets = ["quotes","km-ttm", "ratio-ttm"];
   // var sheets = ["km", "ratio"];
   // var sheets = ["cf", "bs", "income"];
   // var sheets = ["shares", "raw-insider"];
-  var sheets = ["km"];
+  // var sheets = ["km"];
   var companySheet = ss.getSheetByName("ANNUAL");
   companySheet.getRange(3,2).setValue("Converting floats ...");
 

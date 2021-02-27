@@ -22,21 +22,20 @@ sheet = client.open_by_key(spreadsheet_key)
 
 # pull values from sheets
 to_pull = sheet.worksheet("to pull")
-stocks = to_pull.col_values(1)[1:]
-stocks = list(set(stocks))
-industries = to_pull.col_values(2)[1:]
+tickers = to_pull.col_values(1)[1:]
+industry_tickers = to_pull.col_values(4)[1:]
+exclude_list = to_pull.col_values(10)[1:]
 etf_tickers = to_pull.col_values(3)[1:]
 
-# grab tickers for industries
-tickers = []
-if len(industries) > 0:
-    ticker_sheet = sheet.worksheet("tickers")
-    all_tickers = ticker_sheet.get_all_values()
-    for industry in industries:
-        for ticker in all_tickers:
-            if ticker[5] == industry:
-                tickers.append(ticker[1])
-tickers.extend(stocks)
+# combine them together / dedupe / remove blanks
+tickers += industry_tickers
+tickers = list(set(tickers)) 
+no_blank_ticker = []
+for ticker in tickers:
+    if len(ticker) > 0 and ticker not in exclude_list:
+        no_blank_ticker.append(ticker)
+tickers = no_blank_ticker
+
 
 # define how many years we want to retrieve
 num_years = 1
@@ -57,7 +56,7 @@ index_cols, index_output = [], []
 # declare what data to pull
 # single sources are for sources that can only take one ticker at a time
 single_sources, bulk_sources = [], []
-if len(stocks) > 0 or len(industries) > 0: 
+if len(tickers) > 0: 
     single_sources = [
                 ['income-statement/', 'with-limit', income_cols, income_output, 'income'],
                 ['cash-flow-statement/','with-limit', cf_cols, cf_output, 'cf'],
@@ -238,7 +237,7 @@ for source in sources:
     d2g.upload(table, spreadsheet_key, type, credentials=creds, row_names=True)    
 
 now = datetime.datetime.now()
-to_pull.update('D1', "Last updated: " + '{d.month}/{d.day} {d.hour}:{d.minute:02}'.format(d=now))
-to_pull.update('E1', "Need to be converted")
+to_pull.update('H1', "Last updated: " + '{d.month}/{d.day} {d.hour}:{d.minute:02}'.format(d=now))
+to_pull.update('I1', "Need to be converted")
 
 print('Finito!')
