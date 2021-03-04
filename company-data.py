@@ -25,9 +25,9 @@ company_sheet = sheet.worksheet("ANNUAL")
 
 # # pull values from sheets
 tickers = []
-stocks = to_pull.col_values(1)
+stocks = to_pull.col_values(1)[1:]
 for stock in stocks: 
-    if stock != '':
+    if stock != '' and stock not in tickers:
         tickers.append(stock)
 
 # define how many years, periods we want to retrieve
@@ -50,20 +50,20 @@ km_ttm_cols, km_ttm_output = [], []
 # declare what data to pull
 # single sources are for sources that can only take one ticker at a time
 single_sources = [
-            # ['income-statement/', 'with-limit', income_cols, income_output, 'income'],
-            # ['balance-sheet-statement/', 'with-limit', bs_cols, bs_output, 'bs'],
-            # ['cash-flow-statement/','with-limit', cf_cols, cf_output, 'cf'],
-            # ['ratios/','with-limit', ratio_cols, ratio_output, 'ratio'],
-            ['key-metrics/','with-limit', km_cols, km_output, 'km']
-            # ['ratios-ttm/','ticker-only', ratio_ttm_cols, ratio_ttm_output, 'ratio-ttm'],
-            # ['key-metrics-ttm/','ticker-only', km_ttm_cols, km_ttm_output, 'km-ttm'],
-            # ['financial-statement-full-as-reported/','ticker-only', share_cols, share_output, 'shares']
+            ['income-statement/', 'with-limit', income_cols, income_output, 'income'],
+            ['balance-sheet-statement/', 'with-limit', bs_cols, bs_output, 'bs'],
+            ['cash-flow-statement/','with-limit', cf_cols, cf_output, 'cf'],
+            ['ratios/','with-limit', ratio_cols, ratio_output, 'ratio'],
+            ['key-metrics/','with-limit', km_cols, km_output, 'km'],
+            ['ratios-ttm/','ticker-only', ratio_ttm_cols, ratio_ttm_output, 'ratio-ttm'],
+            ['key-metrics-ttm/','ticker-only', km_ttm_cols, km_ttm_output, 'km-ttm'],
+            ['financial-statement-full-as-reported/','ticker-only', share_cols, share_output, 'shares']
         ]
 
 # bulk sources are sources that can take multiple tickers or only need to be called once
 bulk_sources = [
-            # ['quote/','multiple-tickers', quote_cols, quote_output, 'quotes'],
-            # ['profile/','multiple-tickers', prof_cols, prof_output, 'profiles']
+            ['quote/','multiple-tickers', quote_cols, quote_output, 'quotes'],
+            ['profile/','multiple-tickers', prof_cols, prof_output, 'profiles']
         ]
 
 period_sources = ['income', 'bs', 'cf', 'ratio', 'km']
@@ -115,8 +115,9 @@ for source in sources:
                     period = {'period': quarter}
                     period.update(item)
                     new_period_resp.append(period)
-
-            response = new_resp + new_period_resp
+                response = new_resp + new_period_resp
+            else:
+                response += period_response
 
         if response == []:
             print("No data returned.")
@@ -149,7 +150,7 @@ for source in sources:
                 item = updated_item
                 keys = list(item.keys())
 
-            # add columns    
+            # add headers    
             if len(source[2]) == 0:
                 source[2] += keys
 

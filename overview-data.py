@@ -1,12 +1,13 @@
-from df2gspread import df2gspread as d2g
+import configs
 from oauth2client.service_account import ServiceAccountCredentials
 import gspread
 import requests
 import pandas as pd
 import datetime
-import configs
+from df2gspread import df2gspread as d2g
 
 print('Warming up ...')
+verbose = False # update to True if you want a detailed description of what your script is doing
 
 # here you have to enter your actual API key 
 api_key = configs.api_key
@@ -35,7 +36,6 @@ for ticker in tickers:
     if len(ticker) > 0 and ticker not in exclude_list:
         no_blank_ticker.append(ticker)
 tickers = no_blank_ticker
-
 
 # define how many years we want to retrieve
 num_years = 1
@@ -69,8 +69,8 @@ bulk_sources = [
             ['quote/','multiple-tickers', quote_cols, quote_output, 'quotes'],
             ['stock-list','',list_cols, list_output, 'tickers'],
             ['quotes/commodity','no-input', comm_cols, comm_output, 'commodities'],
-            ['sectors-performance','no-input', sector_cols, sector_output, 'sector-perf']
-            # ['quotes/index', 'no-input', index_cols, index_output, 'indices'],
+            ['sectors-performance','no-input', sector_cols, sector_output, 'sector-perf'],
+            ['quotes/index', 'no-input', index_cols, index_output, 'indices']
         ]
 
 sources = bulk_sources + single_sources
@@ -89,6 +89,10 @@ for source in single_sources:
         if param_type == 'with-limit':
             url += source[0] + ticker + '?limit=' + str(num_years) + '&apikey=' + api_key
         
+        if verbose:
+            split_url = url.split('apikey=')[0]
+            print("URL: " + str(split_url) + '\n')
+
         # get response
         response = requests.get(url)
         response = response.json()
@@ -111,14 +115,17 @@ for source in single_sources:
                 symbol.update(item)
                 item = symbol
 
-            # add columns    
+            # add headers    
             keys = list(item.keys())
             if len(source[2]) == 0:
                 source[2] += keys
+                if verbose:
+                    print("Adding new headers: " + str(keys) + '\n')
 
+            # add row
             source[3] += [list(item.values())]
-
-print(tickers)
+            if verbose:
+                print("Adding new row: " + str(list(item.values())) + '\n')
 
 # fetch data from API
 for source in bulk_sources:
@@ -207,7 +214,7 @@ for source in bulk_sources:
 
         source[3] += [list(item.values())]
 
-# print('Cols: ' + str(quote_cols) + '\n')
+# print('Headers ' + str(quote_cols) + '\n')
 # print('Output: ' + str(quote_output) + '\n')
 
 # make dataframe from output
@@ -237,7 +244,7 @@ for source in sources:
     d2g.upload(table, spreadsheet_key, type, credentials=creds, row_names=True)    
 
 now = datetime.datetime.now()
-to_pull.update('H1', "Last updated: " + '{d.month}/{d.day} {d.hour}:{d.minute:02}'.format(d=now))
-to_pull.update('I1', "Need to be converted")
+to_pull.update('I1', "Last updated: " + '{d.month}/{d.day} {d.hour}:{d.minute:02}'.format(d=now))
+to_pull.update('J1', "Need to be converted")
 
 print('Finito!')
