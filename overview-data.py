@@ -7,7 +7,10 @@ import datetime
 from df2gspread import df2gspread as d2g
 
 print('Warming up ...')
+
+# here lie random settings you can update
 verbose = False # update to True if you want a detailed description of what your script is doing
+num_tickers_to_show = 50 # setting to configure how many tickers to pre-populate in your ad-hoc sheet
 
 # here you have to enter your actual API key 
 api_key = configs.api_key
@@ -247,8 +250,8 @@ for source in sources:
     d2g.upload(table, spreadsheet_key, type, credentials=creds, row_names=True)    
 
 ad_hoc = sheet.worksheet("AD-HOC")
-if len(tickers) >= 50:
-    tickers = tickers[:49]
+if len(tickers) >= num_tickers_to_show:
+    tickers = tickers[:num_tickers_to_show - 1]
 last_row = len(tickers) - 1
 range = 'A7:A' + str(last_row + 7)
 ad_hoc.update(range, [[ticker] for ticker in tickers])
