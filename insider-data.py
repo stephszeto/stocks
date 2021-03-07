@@ -42,7 +42,10 @@ for url in urls:
 			if len(ele) > 0:
 				if ele[0] == '+' and ele[1] == "$":
 					ele = ele[2:].split(",")
-					ele = float(ele[0] + ele[1])
+					if len(ele) == 2:
+						ele = float(ele[0] + ele[1])
+					elif len(ele) == 3:
+						ele = float(ele[0] + ele[1] + ele[2])
 			row_data.append(ele)
 		data.append(row_data)
 	first = False
@@ -62,7 +65,6 @@ sheet = client.open_by_key(overview_key)
 d2g.upload(table, overview_key, 'raw-insider', credentials=creds, row_names=True)
 
 to_pull = sheet.worksheet("to pull")
-to_pull.update_cell(1, 6, "Need to be converted")
 print("Uploaded to Overview sheet")
 
 # upload to company table
