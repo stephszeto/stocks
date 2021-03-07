@@ -24,16 +24,19 @@ sheet = client.open_by_key(spreadsheet_key)
 # pull values from sheets
 to_pull = sheet.worksheet("to pull")
 tickers = to_pull.col_values(1)[1:]
-industry_tickers = to_pull.col_values(4)[1:]
+industry_tickers_subset = to_pull.col_values(4)[1:]
+industry_tickers = to_pull.col_values(5)[1:]
 exclude_list = to_pull.col_values(10)[1:]
 etf_tickers = to_pull.col_values(3)[1:]
 
 # combine them together / dedupe / remove blanks
-tickers += industry_tickers
-tickers = list(set(tickers)) 
+if len(industry_tickers_subset) > 1:
+    industry_tickers = industry_tickers_subset 
+
+tickers += industry_tickers 
 no_blank_ticker = []
 for ticker in tickers:
-    if len(ticker) > 0 and ticker not in exclude_list:
+    if len(ticker) > 0 and ticker not in exclude_list and ticker not in no_blank_ticker:
         no_blank_ticker.append(ticker)
 tickers = no_blank_ticker
 
@@ -140,7 +143,7 @@ for source in bulk_sources:
         url += source[0] + '?apikey=' + api_key
     if param_type == 'multiple-tickers':
         if type == 'quotes':
-            extended_tickers = tickers
+            extended_tickers = list(tickers)
             extended_tickers.extend(etf_tickers)
         url += source[0] + ','.join(extended_tickers) + '?apikey=' + api_key 
 
@@ -242,6 +245,13 @@ for source in sources:
     # upload table
     print(type + ' table: ' + '\n' + str(table) + '\n')
     d2g.upload(table, spreadsheet_key, type, credentials=creds, row_names=True)    
+
+ad_hoc = sheet.worksheet("AD-HOC")
+if len(tickers) >= 50:
+    tickers = tickers[:49]
+last_row = len(tickers) - 1
+range = 'A7:A' + str(last_row + 7)
+ad_hoc.update(range, [[ticker] for ticker in tickers])
 
 now = datetime.datetime.now()
 to_pull.update('I1', "Last updated: " + '{d.month}/{d.day} {d.hour}:{d.minute:02}'.format(d=now))
