@@ -70,10 +70,10 @@ def print_industry_tickers(ticker):
 # pull country ERP, default spreads, corporate tax rates
 def fetch_country_data():
     country_data = {}
-    with open("erp.csv", "r") as file:
+    with open("erps.csv", "r") as file:
         for line in csv.reader(file):
-            country = line[0]
-            data = line[1:] # includes ERP, default spread, corporate tax rate
+            country = line[1]
+            data = line[2:] # includes ERP, default spread, country risk premium, corporate tax rate
             country_data[country] = data
     return country_data
 
@@ -368,6 +368,8 @@ def dcf(data, dcf_years=10):
     year_convergence = dcf_years
     future_riskfree_rate = 0.02
     type_estimate_used = "avg" # alternatively, "low" or "high"
+    probability_failure = 0.1
+    percent_proceeds_failure = 0.5
 
     # retrieve key inputs
     age = company_vals[ticker]['age']
@@ -375,14 +377,14 @@ def dcf(data, dcf_years=10):
     industries, industry = get_industries(ticker) 
     mid_point = round(dcf_years / 2)
     effective_tax_rate = data['effective_tax_rate']
-    marginal_tax_rate = float(country_data[country][2])
+    marginal_tax_rate = float(country_data[country][3])
     revenue = data['rev_ttm']
     if type_estimate_used == "avg":
-        type_estimate_used = 1
+        type_estimate_index = 1
     elif type_estimate_used == "low":
-        type_estimate_used = 0
+        type_estimate_index = 0
     elif type_estimate_used == "high":
-        type_estimate_used = 2
+        type_estimate_index = 2
 
     # calculate discount rate (cost of capital)
     # pull inputs for cost / equity 
@@ -416,22 +418,11 @@ def dcf(data, dcf_years=10):
     tax_rates = [effective_tax_rate, effective_tax_rate]
     costs_capital = ['', cost_capital]
 
+    # either take average overall industry margin or average mature company margin 
     industry_growth_rate = industries[industry]['avg_growth']
-    industry_margin = industries[industry]['avg_margin']
-    if show_dcf_calc:
-        print('\n' + "Industry Growth Rate: " + convert(industry_growth_rate))
-        print("Industry Margin Rate: " + convert(industry_margin) + '\n')
-
-        # track metrics by company age / stage
-        if age < 6:
-            print("Industry Growth Rate (Small): " + convert(industries[industry]['small']['avg_growth']))
-            print("Industry Margin Rate (Small): " + convert(industries[industry]['small']['avg_margin']) + '\n')        
-        elif age < 11:
-            print("Industry Growth Rate (Middle): " + convert(industries[industry]['middle']['avg_growth']))
-            print("Industry Margin Rate (Middle): " + convert(industries[industry]['middle']['avg_margin']) + '\n')   
-        else:
-            print("Industry Growth Rate (Mature): " + convert(industries[industry]['mature']['avg_growth']))
-            print("Industry Margin Rate (Mature): " + convert(industries[industry]['mature']['avg_margin']) + '\n')   
+    avg_industry_margin = industries[industry]['avg_margin']
+    mature_avg_industry_margin = industries[industry]['mature']['avg_margin']
+    industry_margin = max(avg_industry_margin, mature_avg_industry_margin)
 
     # populate first half of growth rates, margins
     rev_estimates = data['rev_growth_estimates']
@@ -439,8 +430,8 @@ def dcf(data, dcf_years=10):
 
     for i in range(len(rev_estimates)):
         year = current_year + i
-        growth_rates.append(rev_estimates[year][type_estimate_used]) 
-        op_margins.append(margin_estimates[year][type_estimate_used])
+        growth_rates.append(rev_estimates[year][type_estimate_index]) 
+        op_margins.append(margin_estimates[year][type_estimate_index])
 
     # if known estimates > mid-point, fill in the gap with the latest numbers    
     if len(rev_estimates) < mid_point:   
@@ -449,10 +440,38 @@ def dcf(data, dcf_years=10):
             op_margins.append(op_margins[-1])
 
     # fill out second half of growth rate, margins rate 
-    if age <= 10 and industry_margin > current_margin:
+    margin_estimates_list = []
+    for year in margin_estimates.keys():
+        margin_estimates_list.append(margin_estimates[year][1])
+
+    if age <= 10 and (industry_margin > current_margin or industry_margin > stats.mean(margin_estimates_list)):
         target_margin = industry_margin
+        reason = "industry margin (" + type_estimate_used + ")"
     else: 
         target_margin = company_vals[ticker]['avg_mid_life_margin']
+        reason = "average margin (mid-life until now)"
+
+    # provide context on how growth, margin rates chosen
+    if show_dcf_calc:
+        print('\n' + "Industry Growth Rate: " + convert(industry_growth_rate))
+        print("Industry Margin Rate: " + convert(avg_industry_margin) + '\n')
+
+        # track metrics by company age / stage
+        if age < 6:
+            print("Industry Growth Rate (Peer Group / Small): " + convert(industries[industry]['small']['avg_growth']))
+            print("Industry Margin Rate (Peer Group / Small): " + convert(industries[industry]['small']['avg_margin']) + '\n')        
+        elif age < 11:
+            print("Industry Growth Rate (Peer Group / Middle): " + convert(industries[industry]['middle']['avg_growth']))
+            print("Industry Margin Rate (Peer Group / Middle): " + convert(industries[industry]['middle']['avg_margin']) + '\n')   
+
+        print("Industry Growth Rate (Mature): " + convert(industries[industry]['mature']['avg_growth']))
+        print("Industry Margin Rate (Mature): " + convert(industries[industry]['mature']['avg_margin']) + '\n')  
+
+        print("Target margin: " + convert(target_margin) + " (reason: " + reason + ")")
+
+        if reason.split(" ")[0] == "average":
+            print("Margins: " + str([convert(margin) for margin in (company_vals[ticker]['operating_margins'])]) + '\n')
+
 
     # setting up for next for loop
     remaining_period = dcf_years - mid_point
@@ -557,14 +576,45 @@ def dcf(data, dcf_years=10):
         types = ["percent", "number", "percent", "number", "percent", "number", "number", "number", "percent", "percent", "number", "", "percent", "number"]
         print_table(headers, col_vals, types)
 
-    dcf = round(sum(present_values[2:]), 2)
-    print('\n' + ticker + " DCF valuation: {}".format(convert(dcf, "number")))
+    # calculating final terminal value and summing up together
+    terminal_cf = future_fcffs[-1]
+    terminal_value = terminal_cf * (perpetual_cost_capital - future_riskfree_rate)
+    pv_terminal_value = terminal_value * discount_factors[-1]
+    sum_pvs = round(sum(present_values[2:]), 2)
+    total_pv = sum_pvs + pv_terminal_value
+
+    # adjusting for probability of failure
+    book_value = debt + data['equity_ttm']
+    proceeds_failure = book_value * percent_proceeds_failure
+    op_assets_value = probability_failure * proceeds_failure + (1 - probability_failure) * total_pv
+
+    # take out debt, add cash
+    equity_value = op_assets_value - debt + data['cash_ttm']
+
+    if show_dcf_calc:
+        print('\n' + "Terminal value = terminal cash flow * (perpetual cost / capital - future riskfree rate)")
+        print("Terminal value = " + convert(terminal_cf, "number") + " * (" + convert(perpetual_cost_capital) + " - " + convert(future_riskfree_rate) + ")")
+        print("Terminal value = " + convert(terminal_value, "number") + '\n')
+        print("PV(terminal value) = terminal value * last discount factor")
+        print("PV(terminal value) = " + convert(terminal_value, "number") + ' * ' + convert(discount_factors[-1]))
+        print("PV(terminal value) = " + convert(pv_terminal_value, "number") + '\n')
+        print("Total PV = PV(sum of cash flows) + PV(terminal value)")
+        print("Total PV = " + convert(sum_pvs, "number") + " + " + convert(pv_terminal_value, "number"))
+        print("Total PV = " + convert(total_pv, "number") + '\n')
+        print("Operating assets value = P(failure) * proceeds / failure + P(success) * total PV")
+        print("Operating assets value = " + convert(probability_failure) + ' * ' + convert(proceeds_failure, "number") + " + " + convert(1 - probability_failure) + " * " + convert(total_pv, "number"))
+        print("Operating assets value = " + convert(op_assets_value, "number") + '\n')
+        print("Equity value = operating assets value - debt + net cash")
+        print("Equity value = " + convert(op_assets_value, "number") + " - " + convert(debt, "number") + " + " + convert(data['cash_ttm'], "number"))
+        print("Equity value = " + convert(equity_value, "number"))
+
+    print('\n' + ticker + " DCF valuation: {}".format(convert(equity_value, "number")))
     market_cap_difference = "N/A"
     if dcf != 0:
-        market_cap_difference = (market_cap - dcf) / dcf
+        market_cap_difference = (market_cap - equity_value) / equity_value
         print("Current market cap: {} ({}% over valuation)".format(convert(market_cap, "number"), round(market_cap_difference * 100, 2)))
 
-    fair_price = round(dcf / data['shares'], 2)
+    fair_price = round(equity_value / data['shares'], 2)
     current_price = data['price']
     print('\n' + ticker + " fair value price: {} ".format(fair_price))
 
@@ -572,12 +622,17 @@ def dcf(data, dcf_years=10):
         price_difference = (current_price - fair_price) / fair_price
         print("Current price: {} ({}% over fair value)".format(current_price, round(price_difference * 100, 2)))
 
-    return [market_cap, dcf, current_price, fair_price, market_cap_difference]
+    return [market_cap, equity_value, current_price, fair_price, market_cap_difference]
 
 # helper function to calculate cost / capital
 def calculate_cost_capital(equity_weight, debt_weight, beta, country_erp, interest_coverage, market_cap, country_default_spread):
+    # retrieve riskfree rate
+    url = "https://finance.yahoo.com/quote/%5ETNX/"
+    response = requests.get(url, verify=False)
+    parser = html.fromstring(response.content)
+    riskfree_rate = float(parser.xpath('//*[@id="quote-header-info"]/div[3]/div[1]/div/span[1]')[0].text) / 100
+
     # calculate cost / equity
-    riskfree_rate = .0157
     cost_equity = riskfree_rate + beta * country_erp # calculating ERP based off of country of incorporation
     if show_dcf_calc:
         print('\n' + "Equity %: " + convert(equity_weight))
